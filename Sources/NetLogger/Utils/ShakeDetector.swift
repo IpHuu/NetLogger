@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class ShakeDetector {
     static let shared = ShakeDetector()
     private var isEnabled = false

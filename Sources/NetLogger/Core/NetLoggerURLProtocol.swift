@@ -1,7 +1,8 @@
 import Foundation
 
-final class NetLoggerURLProtocol: URLProtocol {
+final class NetLoggerURLProtocol: URLProtocol, @unchecked Sendable {
     static let handledKey = "NetLoggerHandled"
+    private let lock = NSLock()
     private var internalSession: URLSession?
     private var internalTask: URLSessionDataTask?
     private var responseData = Data()
@@ -9,7 +10,7 @@ final class NetLoggerURLProtocol: URLProtocol {
     private var logId = UUID()
 
     override class func canInit(with request: URLRequest) -> Bool {
-        guard NetLogger.shared.isEnabled else { return false }
+        guard globalNetLoggerState.isEnabled else { return false }
         return URLProtocol.property(forKey: handledKey, in: request) == nil
     }
 
@@ -23,13 +24,18 @@ final class NetLoggerURLProtocol: URLProtocol {
         }
         URLProtocol.setProperty(true, forKey: Self.handledKey, in: mutableRequest)
 
-        startTime = Date()
-        logId = UUID()
+        let newStartTime = Date()
+        let newLogId = UUID()
+
+        lock.withLock {
+            startTime = newStartTime
+            logId = newLogId
+        }
 
         // 1. Tạo & Ghi log Pending vào Realm
         let log = NetworkLog(
-            id: logId,
-            timestamp: startTime!,
+            id: newLogId,
+            timestamp: newStartTime,
             method: request.httpMethod ?? "GET",
             url: request.url?.absoluteString ?? "",
             requestHeaders: request.allHTTPHeaderFields ?? [:],
@@ -42,14 +48,21 @@ final class NetLoggerURLProtocol: URLProtocol {
 
         // 2. Kích hoạt request thực
         let config = URLSessionConfiguration.default
-        internalSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-        internalTask = internalSession?.dataTask(with: mutableRequest as URLRequest)
-        internalTask?.resume()
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        let task = session.dataTask(with: mutableRequest as URLRequest)
+        
+        lock.withLock {
+            internalSession = session
+            internalTask = task
+        }
+        task.resume()
     }
 
     override func stopLoading() {
-        internalTask?.cancel()
-        internalSession?.invalidateAndCancel()
+        lock.withLock {
+            internalTask?.cancel()
+            internalSession?.invalidateAndCancel()
+        }
     }
 }
 
@@ -62,21 +75,27 @@ extension NetLoggerURLProtocol: URLSessionDataDelegate {
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         client?.urlProtocol(self, didLoad: data)
-        responseData.append(data)
+        lock.withLock {
+            responseData.append(data)
+        }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        let duration = startTime.map { Date().timeIntervalSince($0) }
+        let (duration, currentLogId, currentResponseData) = lock.withLock { () -> (TimeInterval?, UUID, Data) in
+            let d = startTime.map { Date().timeIntervalSince($0) }
+            return (d, logId, responseData)
+        }
+        
         let httpResponse = task.response as? HTTPURLResponse
         let statusCode = httpResponse?.statusCode
 
         // 3. Cập nhật trạng thái HTTP Response về Realm (chạy background thread)
         Task { @MainActor in
             NetLoggerDI.shared.updateLogUseCase.execute(
-                id: logId,
+                id: currentLogId,
                 statusCode: statusCode,
                 responseHeaders: httpResponse?.allHeaderFields as? [String: String],
-                responseBody: String(data: responseData, encoding: .utf8),
+                responseBody: String(data: currentResponseData, encoding: .utf8),
                 duration: duration,
                 error: error?.localizedDescription
             )

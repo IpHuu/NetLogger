@@ -1,7 +1,7 @@
 import UIKit
 import SwiftUI
 
-private final class NetLoggerState: @unchecked Sendable {
+internal final class NetLoggerState: @unchecked Sendable {
     private let lock = NSLock()
     private var _isEnabled = false
     
@@ -11,14 +11,14 @@ private final class NetLoggerState: @unchecked Sendable {
     }
 }
 
-private let globalState = NetLoggerState()
+internal let globalNetLoggerState = NetLoggerState()
 
 @MainActor
 public final class NetLogger {
     public static let shared = NetLogger()
 
     public var isEnabled: Bool {
-        globalState.isEnabled
+        globalNetLoggerState.isEnabled
     }
     public var config = NetLoggerConfig()
 
@@ -26,8 +26,8 @@ public final class NetLogger {
 
     public func start() {
         #if DEBUG
-        guard !globalState.isEnabled else { return }
-        globalState.isEnabled = true
+        guard !globalNetLoggerState.isEnabled else { return }
+        globalNetLoggerState.isEnabled = true
         URLProtocol.registerClass(NetLoggerURLProtocol.self)
         swizzleURLSessionConfiguration()
         
@@ -46,7 +46,7 @@ public final class NetLogger {
     }
 
     public func stop() {
-        globalState.isEnabled = false
+        globalNetLoggerState.isEnabled = false
         URLProtocol.unregisterClass(NetLoggerURLProtocol.self)
         FloatingButtonWindow.shared.hide()
         NotificationCenter.default.removeObserver(self, name: .deviceDidShakeNotification, object: nil)
@@ -124,7 +124,7 @@ public final class NetLogger {
 extension URLSessionConfiguration {
     @objc class var netLogger_default: URLSessionConfiguration {
         let config = self.netLogger_default
-        if globalState.isEnabled {
+        if globalNetLoggerState.isEnabled {
             var protocols = config.protocolClasses ?? []
             if !protocols.contains(where: { $0 == NetLoggerURLProtocol.self }) {
                 protocols.insert(NetLoggerURLProtocol.self, at: 0)
