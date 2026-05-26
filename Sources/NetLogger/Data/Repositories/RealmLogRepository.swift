@@ -41,7 +41,7 @@ public final class RealmLogRepository: LogRepository {
                 guard let self = self else { return }
                 switch changes {
                 case .initial(let collection), .update(let collection, _, _, _):
-                    let mappedLogs = collection.map { NetworkLogMapper.toDomain($0) }
+                    let mappedLogs = Array(collection.map { NetworkLogMapper.toDomain($0) })
                     DispatchQueue.main.async {
                         self._logs = mappedLogs
                     }
