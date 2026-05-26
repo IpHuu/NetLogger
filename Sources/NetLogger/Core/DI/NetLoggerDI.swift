@@ -15,7 +15,7 @@ public final class NetLoggerDI {
     public let deleteOldLogsUseCase: DeleteOldLogsUseCase
     
     private init() {
-        let repo = RealmLogRepository()
+        let repo = FileLogRepository(maxEntries: NetLogger.shared.config.maxEntries)
         self.logRepository = repo
         
         self.observeLogsUseCase = ObserveLogsUseCase(repository: repo)
@@ -50,6 +50,9 @@ public final class NetLoggerDI {
                 NetLogger.shared.config.maxEntries = maxEntries
                 NetLogger.shared.config.autoDeleteDays = autoDeleteDays
                 NetLogger.shared.config.shakeSensitivity = sensitivity
+                if let fileRepo = NetLoggerDI.shared.logRepository as? FileLogRepository {
+                    fileRepo.maxEntries = maxEntries
+                }
             }
         )
     }

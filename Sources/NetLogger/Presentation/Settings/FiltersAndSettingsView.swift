@@ -47,8 +47,8 @@ struct FiltersAndSettingsView: View {
                                     .font(.caption.bold())
                                     .padding(.vertical, 6)
                                     .frame(maxWidth: .infinity)
-                                    .background(isSelected ? Color.systemGreen : Color(white: 0.15))
-                                    .foregroundColor(isSelected ? .white : .gray)
+                                    .background(isSelected ? Color.systemGreen : Color(UIColor.secondarySystemFill))
+                                    .foregroundColor(isSelected ? .white : .primary)
                                     .cornerRadius(6)
                             }
                             .buttonStyle(.plain)
@@ -151,7 +151,7 @@ struct FiltersAndSettingsView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
     
     private var sensitivityLabel: String {

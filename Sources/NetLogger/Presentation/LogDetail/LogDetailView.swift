@@ -16,7 +16,7 @@ struct LogDetailView: View {
             }
             .pickerStyle(.segmented)
             .padding()
-            .background(Color(red: 0.08, green: 0.08, blue: 0.09))
+            .background(Color(UIColor.systemGroupedBackground))
             
             Divider()
             
@@ -45,8 +45,8 @@ struct LogDetailView: View {
                 }
             }
         }
-        .background(Color(red: 0.08, green: 0.08, blue: 0.09))
-        .preferredColorScheme(.dark)
+        .background(Color(UIColor.systemGroupedBackground))
+        .preferredColorScheme(.light)
     }
     
     // MARK: - Overview Tab
@@ -271,11 +271,11 @@ struct LogDetailView: View {
                 content()
             }
             .padding()
-            .background(Color(red: 0.12, green: 0.12, blue: 0.14))
+            .background(Color(UIColor.secondarySystemGroupedBackground))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(white: 0.1), lineWidth: 1)
+                    .stroke(Color(UIColor.separator), lineWidth: 1)
             )
         }
     }
@@ -294,7 +294,7 @@ struct LogDetailView: View {
                         .foregroundColor(.gray)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(white: 0.15))
+                        .background(Color(UIColor.tertiarySystemFill))
                         .cornerRadius(6)
                 }
             }
@@ -303,11 +303,11 @@ struct LogDetailView: View {
                 content()
             }
             .padding()
-            .background(Color(red: 0.12, green: 0.12, blue: 0.14))
+            .background(Color(UIColor.secondarySystemGroupedBackground))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(white: 0.1), lineWidth: 1)
+                    .stroke(Color(UIColor.separator), lineWidth: 1)
             )
         }
     }
@@ -324,7 +324,7 @@ struct LogDetailView: View {
                 .textSelection(.enabled)
             
             Divider()
-                .background(Color(white: 0.15))
+                .background(Color(UIColor.separator))
         }
         .padding(.vertical, 2)
     }

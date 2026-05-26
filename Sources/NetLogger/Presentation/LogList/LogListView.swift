@@ -28,7 +28,7 @@ struct LogListView: View {
                                     NavigationLink(destination: LogDetailView(log: log)) {
                                         LogListRowView(log: log)
                                     }
-                                    .listRowBackground(Color(red: 0.12, green: 0.12, blue: 0.14))
+                                    .listRowBackground(Color(UIColor.secondarySystemGroupedBackground))
                                 }
                             }
                         }
@@ -60,7 +60,7 @@ struct LogListView: View {
                     }
                 }
             }
-            .background(Color(red: 0.08, green: 0.08, blue: 0.09))
+            .background(Color(UIColor.systemGroupedBackground))
             .sheet(isPresented: $showingSettings) {
                 FiltersAndSettingsView(
                     viewModel: NetLoggerDI.shared.makeLogSettingsViewModel(),
@@ -68,7 +68,7 @@ struct LogListView: View {
                 )
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
     
     private var filterChips: some View {
@@ -86,8 +86,8 @@ struct LogListView: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 6)
-                                .background(isSelected ? Color.systemGreen : Color(white: 0.15))
-                                .foregroundColor(isSelected ? .white : .gray)
+                                .background(isSelected ? Color.systemGreen : Color(UIColor.secondarySystemFill))
+                                .foregroundColor(isSelected ? .white : .primary)
                                 .clipShape(Capsule())
                         }
                     }
@@ -95,10 +95,9 @@ struct LogListView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 10)
             }
-            .background(Color(red: 0.12, green: 0.12, blue: 0.14))
+            .background(Color(UIColor.secondarySystemGroupedBackground))
             
             Divider()
-                .background(Color(white: 0.15))
         }
     }
 }

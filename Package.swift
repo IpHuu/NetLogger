@@ -7,15 +7,11 @@ let package = Package(
     products: [
         .library(name: "NetLogger", targets: ["NetLogger"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.4")
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "NetLogger",
-            dependencies: [
-                .product(name: "RealmSwift", package: "realm-swift")
-            ],
+            dependencies: [],
             path: "Sources"
         ),
     ]

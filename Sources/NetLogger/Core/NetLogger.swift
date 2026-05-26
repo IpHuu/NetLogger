@@ -25,7 +25,6 @@ public final class NetLogger {
     private init() {}
 
     public func start() {
-        #if DEBUG
         guard !globalNetLoggerState.isEnabled else { return }
         globalNetLoggerState.isEnabled = true
         URLProtocol.registerClass(NetLoggerURLProtocol.self)
@@ -42,7 +41,6 @@ public final class NetLogger {
         
         // Tự động xoá logs cũ
         NetLoggerDI.shared.deleteOldLogsUseCase.execute(olderThanDays: config.autoDeleteDays)
-        #endif
     }
 
     public func stop() {
