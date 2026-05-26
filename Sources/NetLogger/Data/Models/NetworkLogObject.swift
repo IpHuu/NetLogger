@@ -14,4 +14,7 @@ class NetworkLogObject: Object {
     @Persisted var responseBody: String? = nil
     @Persisted var errorDescription: String? = nil
     @Persisted var duration: Double? = nil
+    @Persisted var httpVersion: String? = nil
+    @Persisted var requestDuration: Double? = nil
+    @Persisted var responseDuration: Double? = nil
 }

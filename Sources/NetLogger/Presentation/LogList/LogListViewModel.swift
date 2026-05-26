@@ -5,11 +5,18 @@ import Combine
 public final class LogListViewModel: ObservableObject {
     @Published public var logs: [NetworkLog] = []
     @Published public var searchText = ""
-    @Published public var selectedMethod = "ALL"
-    @Published public var selectedStatus = "ALL"
+    @Published public var selectedChip: LogTypeChip = .all
     
-    public let methods = ["ALL", "GET", "POST", "PUT", "DELETE"]
-    public let statuses = ["ALL", "SUCCESS", "REDIRECT", "CLIENT ERROR", "SERVER ERROR", "PENDING"]
+    public enum LogTypeChip: String, CaseIterable {
+        case all = "All"
+        case api = "API"
+        case general = "General"
+        case error = "Error"
+    }
+    
+    // Will be bound to FiltersAndSettings later
+    @Published public var selectedMethods: Set<String> = []
+    @Published public var selectedStatusGroups: Set<String> = []
     
     private let observeLogsUseCase: ObserveLogsUseCase
     private var cancellables = Set<AnyCancellable>()
@@ -28,40 +35,80 @@ public final class LogListViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    public var filteredLogs: [NetworkLog] {
+    public func clearLogs() {
+        NetLoggerDI.shared.clearLogsUseCase.execute()
+    }
+    
+    private var filteredLogs: [NetworkLog] {
         logs.filter { log in
             // Search text filter
             let matchesSearch = searchText.isEmpty || 
                 log.url.localizedCaseInsensitiveContains(searchText) || 
                 log.method.localizedCaseInsensitiveContains(searchText)
             
-            // Method filter
-            let matchesMethod = selectedMethod == "ALL" || log.method.uppercased() == selectedMethod
+            // Chip filter
+            let matchesChip: Bool
+            let methodUpper = log.method.uppercased()
+            switch selectedChip {
+            case .all:
+                matchesChip = true
+            case .api:
+                let apiMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+                matchesChip = apiMethods.contains(methodUpper)
+            case .general:
+                let generalMethods = ["INFO", "DEBUG"]
+                matchesChip = generalMethods.contains(methodUpper)
+            case .error:
+                matchesChip = methodUpper == "ERROR" || (log.statusCode ?? 0) >= 400
+            }
             
-            // Status filter
+            // Filters from Settings
+            let matchesMethod = selectedMethods.isEmpty || selectedMethods.contains(methodUpper)
+            
             let matchesStatus: Bool
-            if selectedStatus == "ALL" {
+            if selectedStatusGroups.isEmpty {
                 matchesStatus = true
             } else {
-                guard let code = log.statusCode else {
-                    matchesStatus = selectedStatus == "PENDING"
-                    return matchesSearch && matchesMethod && matchesStatus
-                }
-                switch selectedStatus {
-                case "SUCCESS":
-                    matchesStatus = (200...299).contains(code)
-                case "REDIRECT":
-                    matchesStatus = (300...399).contains(code)
-                case "CLIENT ERROR":
-                    matchesStatus = (400...499).contains(code)
-                case "SERVER ERROR":
-                    matchesStatus = (500...599).contains(code)
-                default:
+                if let code = log.statusCode {
+                    let group = "\(code / 100)xx"
+                    matchesStatus = selectedStatusGroups.contains(group)
+                } else {
                     matchesStatus = false
                 }
             }
             
-            return matchesSearch && matchesMethod && matchesStatus
+            return matchesSearch && matchesChip && matchesMethod && matchesStatus
         }
+    }
+    
+    public var groupedLogs: [(String, [NetworkLog])] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        
+        let grouped = Dictionary(grouping: filteredLogs) { log -> String in
+            let date = calendar.startOfDay(for: log.timestamp)
+            if date == today {
+                return "Today"
+            } else if date == yesterday {
+                return "Yesterday"
+            } else {
+                return formatter.string(from: date)
+            }
+        }
+        
+        // Sort keys (Today first, then Yesterday, then by date descending)
+        let sortedKeys = grouped.keys.sorted { key1, key2 in
+            if key1 == "Today" { return true }
+            if key2 == "Today" { return false }
+            if key1 == "Yesterday" { return true }
+            if key2 == "Yesterday" { return false }
+            return key1 > key2
+        }
+        
+        return sortedKeys.map { ($0, grouped[$0]!) }
     }
 }

@@ -18,7 +18,10 @@ struct NetworkLogMapper {
             responseHeaders: responseHeaders,
             responseBody: object.responseBody,
             errorDescription: object.errorDescription,
-            duration: object.duration
+            duration: object.duration,
+            httpVersion: object.httpVersion,
+            requestDuration: object.requestDuration,
+            responseDuration: object.responseDuration
         )
     }
     
@@ -49,6 +52,9 @@ struct NetworkLogMapper {
         object.responseBody = log.responseBody
         object.errorDescription = log.errorDescription
         object.duration = log.duration
+        object.httpVersion = log.httpVersion
+        object.requestDuration = log.requestDuration
+        object.responseDuration = log.responseDuration
         
         return object
     }

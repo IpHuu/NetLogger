@@ -10,7 +10,7 @@ struct LogDetailView: View {
         VStack(spacing: 0) {
             // Premium custom tab bar
             Picker("", selection: $activeTab) {
-                Text("Tổng quan").tag(0)
+                Text("Overview").tag(0)
                 Text("Request").tag(1)
                 Text("Response").tag(2)
             }
@@ -32,13 +32,16 @@ struct LogDetailView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
         }
-        .navigationTitle("Chi tiết API")
+        .navigationTitle("Log Detail")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: copyCurl) {
-                    Label(isCopied ? "Đã copy" : "Copy cURL", systemImage: isCopied ? "checkmark" : "doc.on.doc")
-                        .foregroundColor(isCopied ? .green : .accentColor)
+                Menu {
+                    Button(action: copyCurl) {
+                        Label("Copy cURL", systemImage: "terminal")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
@@ -50,26 +53,147 @@ struct LogDetailView: View {
     private var overviewTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                detailCard(title: "THÔNG TIN CHUNG") {
-                    infoRow(label: "URL", value: log.url, isMonospaced: true)
-                    infoRow(label: "Method", value: log.method)
-                    infoRow(label: "Status Code", value: log.statusCode.flatMap { "\($0)" } ?? "PENDING")
-                    infoRow(label: "Thời gian", value: formattedDate(log.timestamp))
-                    if let duration = log.duration {
-                        infoRow(label: "Thời gian phản hồi", value: String(format: "%.0f ms (%.3f s)", duration * 1000, duration))
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("STATUS CODE").font(.caption2).foregroundColor(.gray)
+                        StatusBadge(statusCode: log.statusCode)
+                    }
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("METHOD").font(.caption2).foregroundColor(.gray)
+                        Text(log.method.uppercased())
+                            .font(.system(.caption, design: .monospaced, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(methodColor(log.method))
+                            .cornerRadius(4)
+                    }
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DURATION").font(.caption2).foregroundColor(.gray)
+                        if let duration = log.duration {
+                            Text(String(format: "%.0fms", duration * 1000))
+                                .font(.system(.subheadline, design: .monospaced))
+                                .foregroundColor(.primary)
+                        } else {
+                            Text("Pending").font(.subheadline).foregroundColor(.gray)
+                        }
+                    }
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("PROTOCOL").font(.caption2).foregroundColor(.gray)
+                        Text(log.httpVersion ?? "HTTP/1.1")
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundColor(.primary)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                
+                detailCard(title: "REQUEST URL") {
+                    HStack(alignment: .top) {
+                        Text(log.url)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.primary)
+                            .textSelection(.enabled)
+                        
+                        Spacer()
+                        
+                        Button(action: { copyToClipboard(log.url) }) {
+                            Image(systemName: "doc.on.doc")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                
+                if let duration = log.duration {
+                    detailCard(title: "PERFORMANCE TIMELINE") {
+                        performanceTimeline(total: duration)
                     }
                 }
                 
                 if let error = log.errorDescription {
-                    detailCard(title: "LỖI") {
+                    detailCard(title: "ERROR") {
                         Text(error)
                              .font(.system(.body, design: .monospaced))
                             .foregroundColor(.red)
                             .padding(.vertical, 4)
                     }
                 }
+                
+                Button(action: copyCurl) {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "terminal")
+                        Text(isCopied ? "Copied" : "Copy cURL")
+                            .bold()
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color.systemGreen)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+                .padding(.horizontal)
             }
-            .padding()
+            .padding(.vertical)
+        }
+    }
+    
+    private func performanceTimeline(total: TimeInterval) -> some View {
+        let reqMs = (log.requestDuration ?? (total * 0.1)) * 1000
+        let resMs = (log.responseDuration ?? (total * 0.9)) * 1000
+        let totalMs = total * 1000
+        
+        let reqRatio = max(0.05, min(0.95, reqMs / totalMs))
+        let resRatio = max(0.05, min(0.95, resMs / totalMs))
+        
+        return VStack(spacing: 12) {
+            timelineRow(label: "Request", ratio: reqRatio, color: .blue, ms: reqMs)
+            timelineRow(label: "Response", ratio: resRatio, color: .systemGreen, ms: resMs)
+            
+            Divider().background(Color(white: 0.2))
+            
+            HStack {
+                Text("Total Latency").font(.caption).foregroundColor(.gray)
+                Spacer()
+                Text(String(format: "%.0fms", totalMs)).font(.caption.bold()).foregroundColor(.primary)
+            }
+        }
+    }
+    
+    private func timelineRow(label: String, ratio: Double, color: Color, ms: Double) -> some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.gray)
+                .frame(width: 70, alignment: .trailing)
+            
+            GeometryReader { geo in
+                let width = geo.size.width * CGFloat(ratio)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(color)
+                    .frame(width: width, height: 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            }
+            .frame(height: 8)
+            
+            Text(String(format: "%.0fms", ms))
+                .font(.caption.monospacedDigit())
+                .foregroundColor(.gray)
+                .frame(width: 50, alignment: .trailing)
+        }
+    }
+    
+    private func methodColor(_ method: String) -> Color {
+        switch method.uppercased() {
+        case "GET": return .green
+        case "POST": return .blue
+        case "PUT": return .orange
+        case "DELETE": return .red
+        default: return .gray
         }
     }
     
@@ -77,9 +201,9 @@ struct LogDetailView: View {
     private var requestTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                detailCard(title: "REQUEST HEADERS") {
+                detailCardWithAction(title: "REQUEST HEADERS", action: { copyHeaders(log.requestHeaders) }) {
                     if log.requestHeaders.isEmpty {
-                        Text("Không có Request Headers")
+                        Text("No Request Headers")
                             .foregroundColor(.gray)
                             .italic()
                     } else {
@@ -89,11 +213,11 @@ struct LogDetailView: View {
                     }
                 }
                 
-                detailCard(title: "REQUEST BODY") {
+                detailCardWithAction(title: "REQUEST BODY (JSON)", action: { copyToClipboard(log.requestBody ?? "") }) {
                     if let body = log.requestBody, !body.isEmpty {
                         JSONTreeViewer(jsonString: body)
                     } else {
-                        Text("Không có Request Body")
+                        Text("No Request Body")
                             .foregroundColor(.gray)
                             .italic()
                             .padding(.vertical, 4)
@@ -108,23 +232,23 @@ struct LogDetailView: View {
     private var responseTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                detailCard(title: "RESPONSE HEADERS") {
+                detailCardWithAction(title: "RESPONSE HEADERS", action: { copyHeaders(log.responseHeaders ?? [:]) }) {
                     if let headers = log.responseHeaders, !headers.isEmpty {
                         ForEach(headers.sorted(by: { $0.key < $1.key }), id: \.key) { header in
                             infoRow(label: header.key, value: header.value, isMonospaced: true)
                         }
                     } else {
-                        Text("Không có Response Headers")
+                        Text("No Response Headers")
                             .foregroundColor(.gray)
                             .italic()
                     }
                 }
                 
-                detailCard(title: "RESPONSE BODY") {
+                detailCardWithAction(title: "RESPONSE BODY", action: { copyToClipboard(log.responseBody ?? "") }) {
                     if let body = log.responseBody, !body.isEmpty {
                         JSONTreeViewer(jsonString: body)
                     } else {
-                        Text("Không có Response Body")
+                        Text("No Response Body")
                             .foregroundColor(.gray)
                             .italic()
                             .padding(.vertical, 4)
@@ -142,6 +266,38 @@ struct LogDetailView: View {
                 .font(.system(.caption, weight: .bold))
                 .foregroundColor(.gray)
                 .padding(.horizontal, 4)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                content()
+            }
+            .padding()
+            .background(Color(red: 0.12, green: 0.12, blue: 0.14))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(white: 0.1), lineWidth: 1)
+            )
+        }
+    }
+    
+    private func detailCardWithAction<Content: View>(title: String, action: @escaping () -> Void, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title)
+                    .font(.system(.caption, weight: .bold))
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 4)
+                Spacer()
+                Button(action: action) {
+                    Label("Copy", systemImage: "doc.on.doc")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(white: 0.15))
+                        .cornerRadius(6)
+                }
+            }
             
             VStack(alignment: .leading, spacing: 8) {
                 content()
@@ -179,6 +335,15 @@ struct LogDetailView: View {
         return formatter.string(from: date)
     }
     
+    private func copyToClipboard(_ text: String) {
+        UIPasteboard.general.string = text
+    }
+    
+    private func copyHeaders(_ headers: [String: String]) {
+        let text = headers.map { "\($0.key): \($0.value)" }.joined(separator: "\n")
+        copyToClipboard(text)
+    }
+
     private func copyCurl() {
         let curl = CurlGenerator.generate(from: log)
         UIPasteboard.general.string = curl

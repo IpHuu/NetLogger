@@ -85,10 +85,18 @@ public final class NetLogger {
 
     private func swizzleURLSessionConfiguration() {
         let klass = URLSessionConfiguration.self
-        let originalMethod = class_getClassMethod(klass, #selector(getter: klass.default))
-        let swizzledMethod = class_getClassMethod(klass, #selector(getter: klass.netLogger_default))
         
-        if let original = originalMethod, let swizzled = swizzledMethod {
+        // Swizzle default
+        let originalDefault = class_getClassMethod(klass, #selector(getter: klass.default))
+        let swizzledDefault = class_getClassMethod(klass, #selector(getter: klass.netLogger_default))
+        if let original = originalDefault, let swizzled = swizzledDefault {
+            method_exchangeImplementations(original, swizzled)
+        }
+        
+        // Swizzle ephemeral
+        let originalEphemeral = class_getClassMethod(klass, #selector(getter: klass.ephemeral))
+        let swizzledEphemeral = class_getClassMethod(klass, #selector(getter: klass.netLogger_ephemeral))
+        if let original = originalEphemeral, let swizzled = swizzledEphemeral {
             method_exchangeImplementations(original, swizzled)
         }
     }
@@ -118,12 +126,51 @@ public final class NetLogger {
         
         NetLoggerDI.shared.addLogUseCase.execute(log)
     }
+
+    // MARK: - Public APIs for custom networking clients
+    
+    @discardableResult
+    public func logRequest(id: UUID = UUID(), method: String, url: String, headers: [String: String] = [:], body: String? = nil) -> UUID {
+        let log = NetworkLog(
+            id: id,
+            timestamp: Date(),
+            method: method,
+            url: url,
+            requestHeaders: headers,
+            requestBody: body
+        )
+        NetLoggerDI.shared.addLogUseCase.execute(log)
+        return id
+    }
+    
+    public func logResponse(id: UUID, statusCode: Int?, responseHeaders: [String: String]? = nil, responseBody: String? = nil, duration: TimeInterval? = nil, error: String? = nil) {
+        NetLoggerDI.shared.updateLogUseCase.execute(
+            id: id,
+            statusCode: statusCode,
+            responseHeaders: responseHeaders,
+            responseBody: responseBody,
+            duration: duration,
+            error: error
+        )
+    }
 }
 
 // Swizzle Helper
 extension URLSessionConfiguration {
     @objc class var netLogger_default: URLSessionConfiguration {
         let config = self.netLogger_default
+        if globalNetLoggerState.isEnabled {
+            var protocols = config.protocolClasses ?? []
+            if !protocols.contains(where: { $0 == NetLoggerURLProtocol.self }) {
+                protocols.insert(NetLoggerURLProtocol.self, at: 0)
+                config.protocolClasses = protocols
+            }
+        }
+        return config
+    }
+    
+    @objc class var netLogger_ephemeral: URLSessionConfiguration {
+        let config = self.netLogger_ephemeral
         if globalNetLoggerState.isEnabled {
             var protocols = config.protocolClasses ?? []
             if !protocols.contains(where: { $0 == NetLoggerURLProtocol.self }) {

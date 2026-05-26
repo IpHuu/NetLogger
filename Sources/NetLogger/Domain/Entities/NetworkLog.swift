@@ -16,6 +16,9 @@ public struct NetworkLog: Codable, Identifiable, Sendable {
     public var responseBody: String?
     public var errorDescription: String?
     public var duration: TimeInterval? // giây
+    public var httpVersion: String?
+    public var requestDuration: TimeInterval?
+    public var responseDuration: TimeInterval?
 
     public init(
         id: UUID,
@@ -28,7 +31,10 @@ public struct NetworkLog: Codable, Identifiable, Sendable {
         responseHeaders: [String: String]? = nil,
         responseBody: String? = nil,
         errorDescription: String? = nil,
-        duration: TimeInterval? = nil
+        duration: TimeInterval? = nil,
+        httpVersion: String? = nil,
+        requestDuration: TimeInterval? = nil,
+        responseDuration: TimeInterval? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -41,5 +47,8 @@ public struct NetworkLog: Codable, Identifiable, Sendable {
         self.responseBody = responseBody
         self.errorDescription = errorDescription
         self.duration = duration
+        self.httpVersion = httpVersion
+        self.requestDuration = requestDuration
+        self.responseDuration = responseDuration
     }
 }

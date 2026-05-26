@@ -23,8 +23,32 @@ struct LogListRowView: View {
         case "POST": return .blue
         case "PUT": return .orange
         case "DELETE": return .red
+        case "DEBUG": return .teal
+        case "INFO": return .cyan
+        case "ERROR": return .red
         default: return .gray
         }
+    }
+    
+    private var extractedTag: String? {
+        let pattern = "^\\[(.*?)\\]"
+        if let regex = try? NSRegularExpression(pattern: pattern),
+           let match = regex.firstMatch(in: log.url, range: NSRange(log.url.startIndex..., in: log.url)) {
+            if let range = Range(match.range(at: 1), in: log.url) {
+                return String(log.url[range])
+            }
+        }
+        return nil
+    }
+    
+    private var displayUrl: String {
+        if let tag = extractedTag {
+            let prefix = "[\(tag)] "
+            if log.url.hasPrefix(prefix) {
+                return String(log.url.dropFirst(prefix.count))
+            }
+        }
+        return log.url
     }
     
     var body: some View {
@@ -50,11 +74,18 @@ struct LogListRowView: View {
                     .foregroundColor(.gray)
             }
             
-            // URL Path
-            Text(log.url)
-                .font(.system(.subheadline, design: .monospaced))
-                .foregroundColor(.primary)
-                .lineLimit(2)
+            // URL Path or Tagged Message
+            HStack(alignment: .top, spacing: 6) {
+                if let tag = extractedTag {
+                    Text("[\(tag)]")
+                        .font(.system(.caption2, design: .monospaced, weight: .bold))
+                        .foregroundColor(.purple)
+                }
+                Text(displayUrl)
+                    .font(.system(.subheadline, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
             
             // Duration & Error description
             HStack {

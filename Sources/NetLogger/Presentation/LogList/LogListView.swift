@@ -8,99 +8,93 @@ struct LogListView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Inline premium filters row
-                filtersHeader
+                // Filter Chips
+                filterChips
                 
-                if viewModel.filteredLogs.isEmpty {
+                if viewModel.groupedLogs.isEmpty {
                     VStack(spacing: 12) {
-                        Image(systemName: "icloud.slash")
+                        Image(systemName: "magnifyingglass")
                             .font(.system(size: 40))
                             .foregroundColor(.gray)
-                        Text("Không tìm thấy kết quả nào")
+                        Text("No logs found")
                             .foregroundColor(.gray)
                     }
                     .frame(maxHeight: .infinity)
                 } else {
                     List {
-                        ForEach(viewModel.filteredLogs) { log in
-                            NavigationLink(destination: LogDetailView(log: log)) {
-                                LogListRowView(log: log)
+                        ForEach(viewModel.groupedLogs, id: \.0) { group in
+                            Section(header: Text(group.0).foregroundColor(.gray).bold()) {
+                                ForEach(group.1) { log in
+                                    NavigationLink(destination: LogDetailView(log: log)) {
+                                        LogListRowView(log: log)
+                                    }
+                                    .listRowBackground(Color(red: 0.12, green: 0.12, blue: 0.14))
+                                }
                             }
-                            .listRowBackground(Color(red: 0.12, green: 0.12, blue: 0.14))
                         }
                     }
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("NetLogger API Console")
+            .navigationTitle("NetScanner Pro")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $viewModel.searchText, prompt: "Tìm kiếm theo URL...")
+            .searchable(text: $viewModel.searchText, prompt: "Search logs...")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
-                            .foregroundColor(.systemGreen)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        Button(action: { viewModel.clearLogs() }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gearshape")
+                                .foregroundColor(.systemGreen)
+                        }
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Đóng") {
-                        dismiss()
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .foregroundColor(.gray)
                     }
-                    .foregroundColor(.systemGreen)
                 }
             }
             .background(Color(red: 0.08, green: 0.08, blue: 0.09))
             .sheet(isPresented: $showingSettings) {
-                LogSettingsView(viewModel: NetLoggerDI.shared.makeLogSettingsViewModel())
+                FiltersAndSettingsView(
+                    viewModel: NetLoggerDI.shared.makeLogSettingsViewModel(),
+                    listViewModel: viewModel
+                )
             }
         }
         .preferredColorScheme(.dark)
     }
     
-    private var filtersHeader: some View {
-        VStack(spacing: 8) {
+    private var filterChips: some View {
+        VStack(spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    // Method Filter
-                    Menu {
-                        ForEach(viewModel.methods, id: \.self) { method in
-                            Button(method) { viewModel.selectedMethod = method }
+                HStack(spacing: 10) {
+                    ForEach(LogListViewModel.LogTypeChip.allCases, id: \.self) { chip in
+                        let isSelected = viewModel.selectedChip == chip
+                        Button(action: {
+                            withAnimation {
+                                viewModel.selectedChip = chip
+                            }
+                        }) {
+                            Text(chip.rawValue)
+                                .font(.system(size: 13, weight: .semibold))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 6)
+                                .background(isSelected ? Color.systemGreen : Color(white: 0.15))
+                                .foregroundColor(isSelected ? .white : .gray)
+                                .clipShape(Capsule())
                         }
-                    } label: {
-                        HStack {
-                            Text("Method: \(viewModel.selectedMethod)")
-                            Image(systemName: "chevron.down")
-                        }
-                        .font(.caption)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color(white: 0.15))
-                        .cornerRadius(8)
-                        .foregroundColor(.primary)
-                    }
-                    
-                    // Status Filter
-                    Menu {
-                        ForEach(viewModel.statuses, id: \.self) { status in
-                            Button(status) { viewModel.selectedStatus = status }
-                        }
-                    } label: {
-                        HStack {
-                            Text("Status: \(viewModel.selectedStatus)")
-                            Image(systemName: "chevron.down")
-                        }
-                        .font(.caption)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color(white: 0.15))
-                        .cornerRadius(8)
-                        .foregroundColor(.primary)
                     }
                 }
                 .padding(.horizontal)
+                .padding(.vertical, 10)
             }
-            .padding(.vertical, 8)
             .background(Color(red: 0.12, green: 0.12, blue: 0.14))
             
             Divider()

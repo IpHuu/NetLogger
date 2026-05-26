@@ -46,9 +46,10 @@ public final class NetLoggerDI {
                     FloatingButtonWindow.shared.hide()
                 }
             },
-            onConfigUpdated: { maxEntries, autoDeleteDays in
+            onConfigUpdated: { maxEntries, autoDeleteDays, sensitivity in
                 NetLogger.shared.config.maxEntries = maxEntries
                 NetLogger.shared.config.autoDeleteDays = autoDeleteDays
+                NetLogger.shared.config.shakeSensitivity = sensitivity
             }
         )
     }
