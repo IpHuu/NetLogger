@@ -78,6 +78,32 @@ public final class NetLogger {
             method_exchangeImplementations(original, swizzled)
         }
     }
+
+    // MARK: - Manual Logging
+    
+    public enum LogLevel: String, Sendable {
+        case debug = "DEBUG"
+        case info = "INFO"
+        case error = "ERROR"
+    }
+
+    public func log(_ message: String, tag: String = "General", level: LogLevel = .info) {
+        let log = NetworkLog(
+            id: UUID(),
+            timestamp: Date(),
+            method: level.rawValue,
+            url: "[\(tag.uppercased())] \(message)",
+            requestHeaders: [:],
+            requestBody: nil,
+            statusCode: level == .error ? 500 : 200,
+            responseHeaders: [:],
+            responseBody: nil,
+            errorDescription: level == .error ? message : nil,
+            duration: nil
+        )
+        
+        LogRealmManager.shared.addLog(log)
+    }
 }
 
 // Swizzle Helper
