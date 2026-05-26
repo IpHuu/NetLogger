@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import RealmSwift
 
-public final class RealmLogRepository: LogRepository {
+public final class RealmLogRepository: LogRepository, @unchecked Sendable {
     @Published private var _logs: [NetworkLog] = []
     
     public var logsPublisher: AnyPublisher<[NetworkLog], Never> {
