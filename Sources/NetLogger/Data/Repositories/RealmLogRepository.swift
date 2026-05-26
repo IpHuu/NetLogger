@@ -1,22 +1,27 @@
 import Foundation
+import Combine
 import RealmSwift
 
-@MainActor
-public final class LogRealmManager: ObservableObject {
-    public static let shared = LogRealmManager()
-
-    @Published public private(set) var logs: [NetworkLog] = []
-
+public final class RealmLogRepository: LogRepository {
+    @Published private var _logs: [NetworkLog] = []
+    
+    public var logsPublisher: AnyPublisher<[NetworkLog], Never> {
+        $_logs.eraseToAnyPublisher()
+    }
+    
+    public var logs: [NetworkLog] {
+        _logs
+    }
+    
     private var notificationToken: NotificationToken?
     private let backgroundQueue = DispatchQueue(label: "tech.vinsmartfuture.netlogger.realm", qos: .background)
-
-    private init() {
+    
+    public init() {
         setupRealm()
         observeLogs()
     }
-
+    
     private func setupRealm() {
-        // Lưu trữ vào .cachesDirectory để tránh bị backup iCloud và dễ dàng dọn dẹp
         var config = Realm.Configuration.defaultConfiguration
         config.fileURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("netlogger_realm.realm")
@@ -26,7 +31,7 @@ public final class LogRealmManager: ObservableObject {
         }
         Realm.Configuration.defaultConfiguration = config
     }
-
+    
     private func observeLogs() {
         do {
             let realm = try Realm()
@@ -36,8 +41,10 @@ public final class LogRealmManager: ObservableObject {
                 guard let self = self else { return }
                 switch changes {
                 case .initial(let collection), .update(let collection, _, _, _):
-                    // Map sang Pure Struct để đảm bảo Thread-Safety và hiển thị UI
-                    self.logs = collection.map { NetworkLog(from: $0) }
+                    let mappedLogs = collection.map { NetworkLogMapper.toDomain($0) }
+                    DispatchQueue.main.async {
+                        self._logs = mappedLogs
+                    }
                 case .error(let error):
                     print("NetLogger Realm: Lỗi giám sát biến động database: \(error)")
                 }
@@ -46,28 +53,16 @@ public final class LogRealmManager: ObservableObject {
             print("NetLogger Realm: Lỗi khởi tạo Realm instance: \(error)")
         }
     }
-
+    
     deinit {
         notificationToken?.invalidate()
     }
-
-    // MARK: - CRUD API
-
+    
     public func addLog(_ log: NetworkLog) {
         backgroundQueue.async {
             do {
                 let realm = try Realm()
-                let object = NetworkLogObject()
-                object.id = log.id
-                object.timestamp = log.timestamp
-                object.method = log.method
-                object.url = log.url
-                
-                let reqHeadersData = (try? JSONEncoder().encode(log.requestHeaders)) ?? Data()
-                object.requestHeadersJson = String(data: reqHeadersData, encoding: .utf8) ?? "{}"
-                object.requestBody = log.requestBody
-                object.statusCode = nil
-
+                let object = NetworkLogMapper.toRealm(log)
                 try realm.write {
                     realm.add(object, update: .modified)
                 }
@@ -76,7 +71,7 @@ public final class LogRealmManager: ObservableObject {
             }
         }
     }
-
+    
     public func updateLog(
         id: UUID,
         statusCode: Int?,
@@ -89,7 +84,7 @@ public final class LogRealmManager: ObservableObject {
             do {
                 let realm = try Realm()
                 guard let object = realm.object(ofType: NetworkLogObject.self, forPrimaryKey: id) else { return }
-
+                
                 try realm.write {
                     if let statusCode = statusCode {
                         object.statusCode = statusCode
@@ -113,7 +108,7 @@ public final class LogRealmManager: ObservableObject {
             }
         }
     }
-
+    
     public func clearAll() {
         backgroundQueue.async {
             do {
@@ -127,7 +122,7 @@ public final class LogRealmManager: ObservableObject {
             }
         }
     }
-
+    
     public func deleteOldLogs(olderThanDays days: Int) {
         backgroundQueue.async {
             do {

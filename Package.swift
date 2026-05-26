@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "NetLogger", targets: ["NetLogger"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/realm/realm-swift.git", from: "10.50.0")
+        .package(url: "https://github.com/realm/realm-swift.git", from: "10.54.0")
     ],
     targets: [
         .target(

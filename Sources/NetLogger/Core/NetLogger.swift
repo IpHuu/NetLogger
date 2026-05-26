@@ -1,19 +1,33 @@
 import UIKit
 import SwiftUI
 
+private final class NetLoggerState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _isEnabled = false
+    
+    var isEnabled: Bool {
+        get { lock.withLock { _isEnabled } }
+        set { lock.withLock { _isEnabled = newValue } }
+    }
+}
+
+private let globalState = NetLoggerState()
+
 @MainActor
 public final class NetLogger {
     public static let shared = NetLogger()
 
-    public private(set) var isEnabled = false
+    public var isEnabled: Bool {
+        globalState.isEnabled
+    }
     public var config = NetLoggerConfig()
 
     private init() {}
 
     public func start() {
         #if DEBUG
-        guard !isEnabled else { return }
-        isEnabled = true
+        guard !globalState.isEnabled else { return }
+        globalState.isEnabled = true
         URLProtocol.registerClass(NetLoggerURLProtocol.self)
         swizzleURLSessionConfiguration()
         
@@ -27,12 +41,12 @@ public final class NetLogger {
         }
         
         // Tự động xoá logs cũ
-        LogRealmManager.shared.deleteOldLogs(olderThanDays: config.autoDeleteDays)
+        NetLoggerDI.shared.deleteOldLogsUseCase.execute(olderThanDays: config.autoDeleteDays)
         #endif
     }
 
     public func stop() {
-        isEnabled = false
+        globalState.isEnabled = false
         URLProtocol.unregisterClass(NetLoggerURLProtocol.self)
         FloatingButtonWindow.shared.hide()
         NotificationCenter.default.removeObserver(self, name: .deviceDidShakeNotification, object: nil)
@@ -43,7 +57,7 @@ public final class NetLogger {
     }
 
     public func makeView() -> some View {
-        LogListView()
+        LogListView(viewModel: NetLoggerDI.shared.makeLogListViewModel())
     }
 
     public func makeViewController() -> UIViewController {
@@ -102,7 +116,7 @@ public final class NetLogger {
             duration: nil
         )
         
-        LogRealmManager.shared.addLog(log)
+        NetLoggerDI.shared.addLogUseCase.execute(log)
     }
 }
 
@@ -110,7 +124,7 @@ public final class NetLogger {
 extension URLSessionConfiguration {
     @objc class var netLogger_default: URLSessionConfiguration {
         let config = self.netLogger_default
-        if NetLogger.shared.isEnabled {
+        if globalState.isEnabled {
             var protocols = config.protocolClasses ?? []
             if !protocols.contains(where: { $0 == NetLoggerURLProtocol.self }) {
                 protocols.insert(NetLoggerURLProtocol.self, at: 0)

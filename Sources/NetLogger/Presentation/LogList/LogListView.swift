@@ -2,52 +2,8 @@ import SwiftUI
 
 struct LogListView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var realmManager = LogRealmManager.shared
-    
-    @State private var searchText = ""
-    @State private var selectedMethod = "ALL"
-    @State private var selectedStatus = "ALL"
+    @ObservedObject var viewModel: LogListViewModel
     @State private var showingSettings = false
-    
-    private let methods = ["ALL", "GET", "POST", "PUT", "DELETE"]
-    private let statuses = ["ALL", "SUCCESS", "REDIRECT", "CLIENT ERROR", "SERVER ERROR", "PENDING"]
-    
-    private var filteredLogs: [NetworkLog] {
-        realmManager.logs.filter { log in
-            // Search text filter
-            let matchesSearch = searchText.isEmpty || 
-                log.url.localizedCaseInsensitiveContains(searchText) || 
-                log.method.localizedCaseInsensitiveContains(searchText)
-            
-            // Method filter
-            let matchesMethod = selectedMethod == "ALL" || log.method.uppercased() == selectedMethod
-            
-            // Status filter
-            let matchesStatus: Bool
-            if selectedStatus == "ALL" {
-                matchesStatus = true
-            } else {
-                guard let code = log.statusCode else {
-                    matchesStatus = selectedStatus == "PENDING"
-                    return matchesSearch && matchesMethod && matchesStatus
-                }
-                switch selectedStatus {
-                case "SUCCESS":
-                    matchesStatus = (200...299).contains(code)
-                case "REDIRECT":
-                    matchesStatus = (300...399).contains(code)
-                case "CLIENT ERROR":
-                    matchesStatus = (400...499).contains(code)
-                case "SERVER ERROR":
-                    matchesStatus = (500...599).contains(code)
-                default:
-                    matchesStatus = false
-                }
-            }
-            
-            return matchesSearch && matchesMethod && matchesStatus
-        }
-    }
     
     var body: some View {
         NavigationView {
@@ -55,7 +11,7 @@ struct LogListView: View {
                 // Inline premium filters row
                 filtersHeader
                 
-                if filteredLogs.isEmpty {
+                if viewModel.filteredLogs.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "icloud.slash")
                             .font(.system(size: 40))
@@ -66,7 +22,7 @@ struct LogListView: View {
                     .frame(maxHeight: .infinity)
                 } else {
                     List {
-                        ForEach(filteredLogs) { log in
+                        ForEach(viewModel.filteredLogs) { log in
                             NavigationLink(destination: LogDetailView(log: log)) {
                                 LogListRowView(log: log)
                             }
@@ -78,7 +34,7 @@ struct LogListView: View {
             }
             .navigationTitle("NetLogger API Console")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Tìm kiếm theo URL...")
+            .searchable(text: $viewModel.searchText, prompt: "Tìm kiếm theo URL...")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
@@ -96,7 +52,7 @@ struct LogListView: View {
             }
             .background(Color(red: 0.08, green: 0.08, blue: 0.09))
             .sheet(isPresented: $showingSettings) {
-                LogSettingsView()
+                LogSettingsView(viewModel: NetLoggerDI.shared.makeLogSettingsViewModel())
             }
         }
         .preferredColorScheme(.dark)
@@ -108,12 +64,12 @@ struct LogListView: View {
                 HStack(spacing: 8) {
                     // Method Filter
                     Menu {
-                        ForEach(methods, id: \.self) { method in
-                            Button(method) { selectedMethod = method }
+                        ForEach(viewModel.methods, id: \.self) { method in
+                            Button(method) { viewModel.selectedMethod = method }
                         }
                     } label: {
                         HStack {
-                            Text("Method: \(selectedMethod)")
+                            Text("Method: \(viewModel.selectedMethod)")
                             Image(systemName: "chevron.down")
                         }
                         .font(.caption)
@@ -126,12 +82,12 @@ struct LogListView: View {
                     
                     // Status Filter
                     Menu {
-                        ForEach(statuses, id: \.self) { status in
-                            Button(status) { selectedStatus = status }
+                        ForEach(viewModel.statuses, id: \.self) { status in
+                            Button(status) { viewModel.selectedStatus = status }
                         }
                     } label: {
                         HStack {
-                            Text("Status: \(selectedStatus)")
+                            Text("Status: \(viewModel.selectedStatus)")
                             Image(systemName: "chevron.down")
                         }
                         .font(.caption)

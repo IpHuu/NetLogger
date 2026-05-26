@@ -63,7 +63,7 @@ struct LogDetailView: View {
                 if let error = log.errorDescription {
                     detailCard(title: "LỖI") {
                         Text(error)
-                            .font(.system(.body, design: .monospaced))
+                             .font(.system(.body, design: .monospaced))
                             .foregroundColor(.red)
                             .padding(.vertical, 4)
                     }

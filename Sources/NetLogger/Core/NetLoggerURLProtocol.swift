@@ -37,7 +37,7 @@ final class NetLoggerURLProtocol: URLProtocol {
         )
 
         Task { @MainActor in
-            LogRealmManager.shared.addLog(log)
+            NetLoggerDI.shared.addLogUseCase.execute(log)
         }
 
         // 2. Kích hoạt request thực
@@ -72,7 +72,7 @@ extension NetLoggerURLProtocol: URLSessionDataDelegate {
 
         // 3. Cập nhật trạng thái HTTP Response về Realm (chạy background thread)
         Task { @MainActor in
-            LogRealmManager.shared.updateLog(
+            NetLoggerDI.shared.updateLogUseCase.execute(
                 id: logId,
                 statusCode: statusCode,
                 responseHeaders: httpResponse?.allHeaderFields as? [String: String],

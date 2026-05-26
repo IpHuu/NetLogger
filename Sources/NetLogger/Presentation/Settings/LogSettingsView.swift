@@ -2,34 +2,22 @@ import SwiftUI
 
 struct LogSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var maxEntries: Double = Double(NetLogger.shared.config.maxEntries)
-    @State private var autoDeleteDays: Double = Double(NetLogger.shared.config.autoDeleteDays)
-    @State private var enableShake = NetLogger.shared.config.enableShake
-    @State private var enableFloating = NetLogger.shared.config.enableFloatingButton
+    @ObservedObject var viewModel: LogSettingsViewModel
     @State private var showingClearAlert = false
     
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("TÍNH NĂNG KÍCH HOẠT")) {
-                    Toggle("Lắc thiết bị mở Logs", isOn: $enableShake)
-                        .onChange(of: enableShake) { newValue in
-                            NetLogger.shared.config.enableShake = newValue
-                            if newValue {
-                                ShakeDetector.shared.enable()
-                            }
-                        }
+                    Toggle("Lắc thiết bị mở Logs", isOn: Binding(
+                        get: { viewModel.enableShake },
+                        set: { viewModel.toggleShake($0) }
+                    ))
                     
-                    Toggle("Hiển thị nút nổi (Floating Button)", isOn: $enableFloating)
-                        .onChange(of: enableFloating) { newValue in
-                            NetLogger.shared.config.enableFloatingButton = newValue
-                            if newValue {
-                                FloatingButtonWindow.shared.show()
-                            } else {
-                                FloatingButtonWindow.shared.hide()
-                            }
-                        }
+                    Toggle("Hiển thị nút nổi (Floating Button)", isOn: Binding(
+                        get: { viewModel.enableFloating },
+                        set: { viewModel.toggleFloating($0) }
+                    ))
                 }
                 
                 Section(header: Text("CẤU HÌNH BỘ NHỚ")) {
@@ -37,12 +25,12 @@ struct LogSettingsView: View {
                         HStack {
                             Text("Giới hạn số log lưu trữ")
                             Spacer()
-                            Text("\(Int(maxEntries)) entries")
+                            Text("\(Int(viewModel.maxEntries)) entries")
                                 .bold()
                         }
-                        Slider(value: $maxEntries, in: 100...2000, step: 50)
-                            .onChange(of: maxEntries) { newValue in
-                                NetLogger.shared.config.maxEntries = Int(newValue)
+                        Slider(value: $viewModel.maxEntries, in: 100...2000, step: 50)
+                            .onChange(of: viewModel.maxEntries) { _ in
+                                viewModel.updateConfig()
                             }
                     }
                     
@@ -50,12 +38,12 @@ struct LogSettingsView: View {
                         HStack {
                             Text("Tự động xoá logs sau")
                             Spacer()
-                            Text("\(Int(autoDeleteDays)) ngày")
+                            Text("\(Int(viewModel.autoDeleteDays)) ngày")
                                 .bold()
                         }
-                        Slider(value: $autoDeleteDays, in: 1...30, step: 1)
-                            .onChange(of: autoDeleteDays) { newValue in
-                                NetLogger.shared.config.autoDeleteDays = Int(newValue)
+                        Slider(value: $viewModel.autoDeleteDays, in: 1...30, step: 1)
+                            .onChange(of: viewModel.autoDeleteDays) { _ in
+                                viewModel.updateConfig()
                             }
                     }
                 }
@@ -86,7 +74,7 @@ struct LogSettingsView: View {
                     title: Text("Xác nhận xóa"),
                     message: Text("Hành động này sẽ xóa vĩnh viễn toàn bộ lịch sử API log. Bạn có chắc chắn không?"),
                     primaryButton: .destructive(Text("Xóa")) {
-                        LogRealmManager.shared.clearAll()
+                        viewModel.clearAllLogs()
                         dismiss()
                     },
                     secondaryButton: .cancel(Text("Hủy"))

@@ -42,21 +42,4 @@ public struct NetworkLog: Codable, Identifiable, Sendable {
         self.errorDescription = errorDescription
         self.duration = duration
     }
-
-    // Mapping from Realm Object
-    init(from object: NetworkLogObject) {
-        self.id = object.id
-        self.timestamp = object.timestamp
-        self.method = object.method
-        self.url = object.url
-        self.requestHeaders = (try? JSONDecoder().decode([String: String].self, from: Data(object.requestHeadersJson.utf8))) ?? [:]
-        self.requestBody = object.requestBody
-        self.statusCode = object.statusCode
-        self.responseHeaders = object.responseHeadersJson.flatMap {
-            try? JSONDecoder().decode([String: String].self, from: Data($0.utf8))
-        }
-        self.responseBody = object.responseBody
-        self.errorDescription = object.errorDescription
-        self.duration = object.duration
-    }
 }
