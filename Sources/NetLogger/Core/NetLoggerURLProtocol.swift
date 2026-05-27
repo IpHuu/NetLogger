@@ -18,11 +18,35 @@ final class NetLoggerURLProtocol: URLProtocol, @unchecked Sendable {
         return request
     }
 
+    private func extractBody(from request: URLRequest) -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        
+        stream.open()
+        let bufferSize = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        var data = Data()
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        buffer.deallocate()
+        stream.close()
+        return data.isEmpty ? nil : data
+    }
+
     override func startLoading() {
         guard let mutableRequest = (request as NSURLRequest).mutableCopy() as? NSMutableURLRequest else {
             return
         }
         URLProtocol.setProperty(true, forKey: Self.handledKey, in: mutableRequest)
+
+        let bodyData = extractBody(from: request)
+        if bodyData != nil {
+            mutableRequest.httpBody = bodyData
+            // URLProtocol sometimes drops the stream, so we convert it to data
+        }
 
         let newStartTime = Date()
         let newLogId = UUID()
@@ -32,14 +56,13 @@ final class NetLoggerURLProtocol: URLProtocol, @unchecked Sendable {
             logId = newLogId
         }
 
-        // 1. Tạo & Ghi log Pending vào Realm
         let log = NetworkLog(
             id: newLogId,
             timestamp: newStartTime,
             method: request.httpMethod ?? "GET",
             url: request.url?.absoluteString ?? "",
             requestHeaders: request.allHTTPHeaderFields ?? [:],
-            requestBody: request.httpBody.flatMap { String(data: $0, encoding: .utf8) }
+            requestBody: bodyData.flatMap { String(data: $0, encoding: .utf8) }
         )
 
         Task { @MainActor in
@@ -89,7 +112,6 @@ extension NetLoggerURLProtocol: URLSessionDataDelegate {
         let httpResponse = task.response as? HTTPURLResponse
         let statusCode = httpResponse?.statusCode
 
-        // 3. Cập nhật trạng thái HTTP Response về Realm (chạy background thread)
         Task { @MainActor in
             NetLoggerDI.shared.updateLogUseCase.execute(
                 id: currentLogId,

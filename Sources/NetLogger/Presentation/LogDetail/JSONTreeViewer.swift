@@ -105,7 +105,7 @@ struct JSONNodeView: View {
                     .buttonStyle(.plain)
                     
                     Text(key)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
                         .foregroundColor(.cyan)
                     
                     Text("{\(children.count)}")
@@ -133,7 +133,7 @@ struct JSONNodeView: View {
                     .buttonStyle(.plain)
                     
                     Text(key)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
                         .foregroundColor(.blue)
                     
                     Text("[\(children.count)]")
@@ -155,11 +155,11 @@ struct JSONNodeView: View {
                     Spacer().frame(width: 16) // Align with chevrons
                     
                     Text(key)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
                         .foregroundColor(.teal)
                     
                     Text(":")
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
                         .foregroundColor(.gray)
                     
                     LeafValueView(value: value)
@@ -176,25 +176,25 @@ struct LeafValueView: View {
     var body: some View {
         if let str = value as? String {
             Text("\"\(str)\"")
-                .font(.system(.body, design: .monospaced))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundColor(.green)
         } else if let num = value as? NSNumber {
             if CFGetTypeID(num) == CFBooleanGetTypeID() {
                 Text(num.boolValue ? "true" : "false")
-                    .font(.system(.body, design: .monospaced))
+                    .font(.system(.footnote, design: .monospaced))
                     .foregroundColor(.purple)
             } else {
                 Text("\(num)")
-                    .font(.system(.body, design: .monospaced))
+                    .font(.system(.footnote, design: .monospaced))
                     .foregroundColor(.orange)
             }
         } else if value is NSNull {
             Text("null")
-                .font(.system(.body, design: .monospaced))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundColor(.gray)
         } else {
             Text("\(String(describing: value))")
-                .font(.system(.body, design: .monospaced))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundColor(.primary)
         }
     }

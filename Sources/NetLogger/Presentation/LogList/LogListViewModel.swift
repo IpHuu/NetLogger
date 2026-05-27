@@ -10,6 +10,7 @@ public final class LogListViewModel: ObservableObject {
     public enum LogTypeChip: String, CaseIterable {
         case all = "All"
         case api = "API"
+        case resource = "Resource"
         case general = "General"
         case error = "Error"
     }
@@ -39,6 +40,14 @@ public final class LogListViewModel: ObservableObject {
         NetLoggerDI.shared.clearLogsUseCase.execute()
     }
     
+    private func isResourceUrl(_ urlString: String) -> Bool {
+        // Strip out query parameters and fragments before getting path extension
+        guard let url = URL(string: urlString) else { return false }
+        let ext = url.pathExtension.lowercased()
+        let resourceExtensions = ["png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "css", "js", "woff", "woff2", "ttf", "eot", "mp4", "mp3", "avif"]
+        return resourceExtensions.contains(ext)
+    }
+    
     private var filteredLogs: [NetworkLog] {
         logs.filter { log in
             // Search text filter
@@ -54,9 +63,12 @@ public final class LogListViewModel: ObservableObject {
                 matchesChip = true
             case .api:
                 let apiMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
-                matchesChip = apiMethods.contains(methodUpper)
+                matchesChip = apiMethods.contains(methodUpper) && !isResourceUrl(log.url)
+            case .resource:
+                let apiMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+                matchesChip = apiMethods.contains(methodUpper) && isResourceUrl(log.url)
             case .general:
-                let generalMethods = ["INFO", "DEBUG"]
+                let generalMethods = ["INFO", "DEBUG", "WARN"]
                 matchesChip = generalMethods.contains(methodUpper)
             case .error:
                 matchesChip = methodUpper == "ERROR" || (log.statusCode ?? 0) >= 400

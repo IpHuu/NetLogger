@@ -82,7 +82,7 @@ struct LogListRowView: View {
                         .foregroundColor(.purple)
                 }
                 Text(displayUrl)
-                    .font(.system(.subheadline, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.primary)
                     .lineLimit(2)
             }
@@ -90,9 +90,15 @@ struct LogListRowView: View {
             // Duration & Error description
             HStack {
                 if !durationText.isEmpty {
-                    Label(durationText, systemImage: "clock")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundColor(.gray)
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 8, height: 8)
+                        Text(durationText)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundColor(.gray)
+                    }
                 }
                 
                 if let error = log.errorDescription {

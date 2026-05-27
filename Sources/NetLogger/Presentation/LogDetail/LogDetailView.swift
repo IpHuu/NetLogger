@@ -94,7 +94,7 @@ struct LogDetailView: View {
                 detailCard(title: "REQUEST URL") {
                     HStack(alignment: .top) {
                         Text(log.url)
-                            .font(.system(.body, design: .monospaced))
+                            .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.primary)
                             .textSelection(.enabled)
                         
@@ -106,11 +106,13 @@ struct LogDetailView: View {
                         }
                     }
                 }
+                .padding(.horizontal)
                 
                 if let duration = log.duration {
                     detailCard(title: "PERFORMANCE TIMELINE") {
                         performanceTimeline(total: duration)
                     }
+                    .padding(.horizontal)
                 }
                 
                 if let error = log.errorDescription {
@@ -119,7 +121,7 @@ struct LogDetailView: View {
                              .font(.system(.body, design: .monospaced))
                             .foregroundColor(.red)
                             .padding(.vertical, 4)
-                    }
+                    }.padding(.horizontal)
                 }
                 
                 Button(action: copyCurl) {
@@ -213,7 +215,7 @@ struct LogDetailView: View {
                     }
                 }
                 
-                detailCardWithAction(title: "REQUEST BODY (JSON)", action: { copyToClipboard(log.requestBody ?? "") }) {
+                detailCardWithAction(title: "REQUEST BODY (JSON)", action: { copyToClipboard(log.requestBody ?? "", formatAsJSON: true) }) {
                     if let body = log.requestBody, !body.isEmpty {
                         JSONTreeViewer(jsonString: body)
                     } else {
@@ -244,7 +246,7 @@ struct LogDetailView: View {
                     }
                 }
                 
-                detailCardWithAction(title: "RESPONSE BODY", action: { copyToClipboard(log.responseBody ?? "") }) {
+                detailCardWithAction(title: "RESPONSE BODY", action: { copyToClipboard(log.responseBody ?? "", formatAsJSON: true) }) {
                     if let body = log.responseBody, !body.isEmpty {
                         JSONTreeViewer(jsonString: body)
                     } else {
@@ -290,11 +292,11 @@ struct LogDetailView: View {
                 Spacer()
                 Button(action: action) {
                     Label("Copy", systemImage: "doc.on.doc")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(UIColor.tertiarySystemFill))
+                        .font(.caption.bold())
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.blue.opacity(0.15))
                         .cornerRadius(6)
                 }
             }
@@ -319,7 +321,7 @@ struct LogDetailView: View {
                 .foregroundColor(.gray)
             
             Text(value)
-                .font(.system(.body, design: isMonospaced ? .monospaced : .default))
+                .font(.system(.footnote, design: isMonospaced ? .monospaced : .default))
                 .foregroundColor(.primary)
                 .textSelection(.enabled)
             
@@ -335,8 +337,15 @@ struct LogDetailView: View {
         return formatter.string(from: date)
     }
     
-    private func copyToClipboard(_ text: String) {
-        UIPasteboard.general.string = text
+    private func copyToClipboard(_ text: String, formatAsJSON: Bool = false) {
+        var copyText = text
+        if formatAsJSON, let data = text.data(using: .utf8),
+           let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+           let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .withoutEscapingSlashes]),
+           let prettyString = String(data: prettyData, encoding: .utf8) {
+            copyText = prettyString
+        }
+        UIPasteboard.general.string = copyText
     }
     
     private func copyHeaders(_ headers: [String: String]) {

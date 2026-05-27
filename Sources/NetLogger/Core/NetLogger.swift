@@ -104,6 +104,7 @@ public final class NetLogger {
     public enum LogLevel: String, Sendable {
         case debug = "DEBUG"
         case info = "INFO"
+        case warn = "WARN"
         case error = "ERROR"
     }
 
